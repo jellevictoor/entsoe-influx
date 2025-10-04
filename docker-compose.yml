@@ -1,6 +1,6 @@
 services:
   entsoe-influx:
-    build: .
+    image: ghcr.io/jellevictoor/entsoe-influx:latest
     environment:
       - ENTSOE_API_KEY=${ENTSOE_API_KEY}
       - INFLUX_URL=${INFLUX_URL:-http://influxdb:8086}
