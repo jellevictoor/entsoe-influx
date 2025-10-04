@@ -1,17 +1,4 @@
 services:
-  entsoe-influx:
-    image: ghcr.io/jellevictoor/entsoe-influx:latest
-    environment:
-      - ENTSOE_API_KEY=${ENTSOE_API_KEY}
-      - INFLUX_URL=${INFLUX_URL:-http://influxdb:8086}
-      - INFLUX_TOKEN=${INFLUX_TOKEN}
-      - INFLUX_ORG=${INFLUX_ORG}
-      - INFLUX_BUCKET=${INFLUX_BUCKET:-energy_prices}
-    command: >
-      --country-code ${COUNTRY_CODE:-BE}
-    profiles:
-      - manual
-
   scheduler:
     image: mcuadros/ofelia:latest
     command: daemon --docker
