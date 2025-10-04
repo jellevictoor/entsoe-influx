@@ -96,9 +96,9 @@ def main(
     # Initialize ENTSO-E client
     entsoe_client = EntsoePandasClient(api_key=entsoe_api_key)
 
-    # Define time range (last 7 days as example)
-    end = pd.Timestamp.now(tz="UTC")
-    start = end - timedelta(days=7)
+    # Define time range (last 7 days + next 2 days to include day-ahead forecasts)
+    start = pd.Timestamp.now(tz="UTC") - timedelta(days=7)
+    end = pd.Timestamp.now(tz="UTC") + timedelta(days=2)
 
     logger.info(f"Fetching day-ahead prices for {country_code}")
     logger.info(f"Time range: {start} to {end}")
