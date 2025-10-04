@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Copy project files
 COPY pyproject.toml ./
+COPY uv.lock ./
 COPY entsoe_influx ./entsoe_influx
 
 # Install dependencies
