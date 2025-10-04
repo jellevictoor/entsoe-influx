@@ -4,12 +4,15 @@ ENTSO-E to InfluxDB Importer
 Fetches electricity price data from ENTSO-E API and stores it in InfluxDB.
 """
 
+import logging
 from datetime import timedelta
 from entsoe import EntsoePandasClient
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 import pandas as pd
 import typer
+
+logger = logging.getLogger(__name__)
 
 # ENTSO-E country codes (examples)
 # Full list: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
@@ -24,7 +27,7 @@ def fetch_day_ahead_prices(client, country_code, start, end):
         prices = client.query_day_ahead_prices(country_code, start=start, end=end)
         return prices
     except Exception as e:
-        print(f"Error fetching prices: {e}")
+        logger.error(f"Error fetching prices: {e}", exc_info=True)
         return None
 
 
@@ -51,10 +54,10 @@ def write_to_influxdb(
 
         # Write all points to InfluxDB
         write_api.write(bucket=influx_bucket, org=influx_org, record=points)
-        print(f"Successfully wrote {len(points)} data points to InfluxDB")
+        logger.info(f"Successfully wrote {len(points)} data points to InfluxDB")
 
     except Exception as e:
-        print(f"Error writing to InfluxDB: {e}")
+        logger.error(f"Error writing to InfluxDB: {e}", exc_info=True)
     finally:
         client.close()
 
@@ -81,6 +84,15 @@ def main(
     ),
 ):
     """Main function to fetch and import ENTSO-E prices."""
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info("Starting ENTSO-E to InfluxDB import")
+
     # Initialize ENTSO-E client
     entsoe_client = EntsoePandasClient(api_key=entsoe_api_key)
 
@@ -88,21 +100,23 @@ def main(
     end = pd.Timestamp.now(tz="UTC")
     start = end - timedelta(days=7)
 
-    print(f"Fetching day-ahead prices for {country_code}")
-    print(f"Time range: {start} to {end}")
+    logger.info(f"Fetching day-ahead prices for {country_code}")
+    logger.info(f"Time range: {start} to {end}")
 
     # Fetch prices
     prices = fetch_day_ahead_prices(entsoe_client, country_code, start, end)
 
     if prices is not None and not prices.empty:
-        print(f"Fetched {len(prices)} price points")
+        logger.info(f"Fetched {len(prices)} price points")
 
         # Write to InfluxDB
         write_to_influxdb(
             prices, country_code, influx_url, influx_token, influx_org, influx_bucket
         )
     else:
-        print("No data fetched")
+        logger.warning("No data fetched")
+
+    logger.info("Import completed")
 
 
 if __name__ == "__main__":
