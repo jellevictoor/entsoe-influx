@@ -1,0 +1,20 @@
+[project]
+name = "entsoe-influx"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "entsoe-py>=0.7.1",
+    "influxdb-client>=1.35.0",
+    "pandas>=2.2.3",
+    "python-dateutil>=2.9.0",
+    "pytz>=2024.1",
+    "requests>=2.31.0",
+    "typer>=0.12.0"
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+    "ruff>=0.13.3",
+]
