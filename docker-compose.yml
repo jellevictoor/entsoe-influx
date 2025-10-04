@@ -9,11 +9,6 @@ services:
       - INFLUX_BUCKET=${INFLUX_BUCKET:-energy_prices}
     command: >
       --country-code ${COUNTRY_CODE:-BE}
-    labels:
-      ofelia.enabled: "true"
-      ofelia.job-exec.entsoe-import.schedule: "0 14 * * *"
-      ofelia.job-exec.entsoe-import.command: "uv run python -m entsoe_influx.main --country-code ${COUNTRY_CODE:-BE}"
-    restart: "no"
     profiles:
       - manual
 
@@ -23,3 +18,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-run.entsoe-import.schedule: "0 14 * * *"
+      ofelia.job-run.entsoe-import.image: "ghcr.io/jellevictoor/entsoe-influx:latest"
+      ofelia.job-run.entsoe-import.environment: "ENTSOE_API_KEY=${ENTSOE_API_KEY},INFLUX_URL=${INFLUX_URL:-http://influxdb:8086},INFLUX_TOKEN=${INFLUX_TOKEN},INFLUX_ORG=${INFLUX_ORG},INFLUX_BUCKET=${INFLUX_BUCKET:-energy_prices}"
+      ofelia.job-run.entsoe-import.command: "--country-code ${COUNTRY_CODE:-BE}"
