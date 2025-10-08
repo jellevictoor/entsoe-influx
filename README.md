@@ -1,12 +1,14 @@
-# ENTSO-E to InfluxDB Importer
+# ENTSO-E to InfluxDB Importer with evcc API
 
-Fetches day-ahead electricity price data from the ENTSO-E Transparency Platform API and stores it in InfluxDB.
+Fetches day-ahead electricity price data from the ENTSO-E Transparency Platform API, stores it in InfluxDB, and exposes it via a REST API in evcc-compatible format.
 
 ## Features
 
 - Fetch day-ahead electricity prices from ENTSO-E API
 - Store data in InfluxDB with country and price type tags
-- Support for all ENTSO-E country codes
+- **REST API endpoint for evcc integration**
+- Support for all ENTSO-E country codes and 15-minute intervals
+- Automatic tax calculation
 - CLI interface with environment variable support
 - Docker support with multi-architecture builds (amd64, arm64)
 - Automated daily imports via Docker Compose with scheduler
@@ -50,10 +52,13 @@ uv run python -m entsoe_influx.main \
 ### Docker
 
 ```bash
-# Pull from GitHub Container Registry
+# Pull importer image from GitHub Container Registry
 docker pull ghcr.io/jellevictoor/entsoe-influx:latest
 
-# Run once
+# Pull API image from GitHub Container Registry
+docker pull ghcr.io/jellevictoor/entsoe-influx-api:latest
+
+# Run importer once
 docker run --rm \
   -e ENTSOE_API_KEY=your-api-key \
   -e INFLUX_URL=http://influxdb:8086 \
@@ -61,23 +66,45 @@ docker run --rm \
   -e INFLUX_ORG=your-org \
   ghcr.io/jellevictoor/entsoe-influx:latest \
   --country-code BE
+
+# Run API service
+docker run -d \
+  -p 8000:8000 \
+  -e INFLUX_URL=http://influxdb:8086 \
+  -e INFLUX_TOKEN=your-token \
+  -e INFLUX_ORG=your-org \
+  -e TAX=0.06 \
+  ghcr.io/jellevictoor/entsoe-influx-api:latest
 ```
 
-### Docker Compose (Scheduled)
+### Docker Compose (Scheduled + API)
 
 1. Copy the example environment file:
    ```bash
    cp .env.example .env
    ```
 
-2. Edit `.env` with your credentials
-
-3. Start the scheduler:
+2. Edit `.env` with your credentials:
    ```bash
-   docker compose up -d scheduler
+   ENTSOE_API_KEY=your-api-key
+   COUNTRY_CODE=BE
+   INFLUX_URL=http://influxdb:8086
+   INFLUX_TOKEN=your-token
+   INFLUX_ORG=your-org
+   INFLUX_BUCKET=energy_prices
+   TAX=0.06  # Optional: Tax to apply (e.g., 0.06 = 6%)
    ```
 
-The importer will run daily at 2 PM (14:00). To run manually:
+3. Start all services:
+   ```bash
+   docker compose up -d
+   ```
+
+This starts:
+- **API service** on port 8000 (exposing prices for evcc)
+- **Scheduler** that runs the importer daily at 2 PM (14:00)
+
+To run the importer manually:
 
 ```bash
 docker compose run --rm entsoe-influx
@@ -118,6 +145,87 @@ Common ENTSO-E country codes:
 - `GB` - Great Britain
 
 Full list available at: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
+
+## evcc Integration
+
+The API service exposes electricity prices in a format compatible with evcc's custom tariff forecast.
+
+### evcc Configuration
+
+Replace your ENTSO-E template configuration with this custom source:
+
+```yaml
+tariffs:
+  grid:
+    type: custom
+    forecast:
+      source: http
+      uri: http://localhost:8000/prices  # Or your server's IP/hostname
+  feedin:
+    type: fixed
+    price: 0.020  # EUR/kWh
+```
+
+**Note:** No `jq` transformation needed! The API returns data in the exact format evcc expects.
+
+### API Endpoints
+
+#### GET /prices
+
+Returns electricity price forecast in evcc format.
+
+**Query Parameters:**
+- `country` (optional) - Filter by country code (e.g., `BE`, `NL`)
+- `tax` (optional) - Override tax rate (e.g., `0.06` for 6%)
+
+**Examples:**
+```bash
+# Get all prices with default tax from environment
+curl http://localhost:8000/prices
+
+# Get prices for Belgium with 6% tax
+curl http://localhost:8000/prices?country=BE&tax=0.06
+```
+
+**Response Format:**
+```json
+[
+  {
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-01T00:15:00Z",
+    "value": 25.0
+  },
+  {
+    "start": "2025-01-01T00:15:00Z",
+    "end": "2025-01-01T00:30:00Z",
+    "value": 26.5
+  }
+]
+```
+
+- Prices are in **ct/kWh** (cents per kilowatt-hour)
+- Covers **48 hours past** and **48 hours future**
+- Tax is automatically applied based on `TAX` environment variable or query parameter
+- Supports **15-minute intervals** (or any interval in your InfluxDB data)
+
+#### GET /health
+
+Health check endpoint for monitoring.
+
+### How It Works
+
+1. The importer fetches day-ahead prices from ENTSO-E daily at 14:00 UTC
+2. Prices are stored in InfluxDB with timestamps
+3. The API queries InfluxDB and formats prices for evcc
+4. evcc polls the API hourly to get updated forecasts
+
+### Benefits over ENTSO-E Template
+
+- ✅ **Offline access** - No dependency on ENTSO-E API availability
+- ✅ **Historical data** - Access to past prices stored in InfluxDB
+- ✅ **Flexible tax handling** - Configure tax via environment or per-request
+- ✅ **Custom intervals** - Supports 15-minute or hourly data
+- ✅ **Single source** - Same data for evcc and other applications (Grafana, etc.)
 
 ## Getting an ENTSO-E API Key
 

@@ -1,4 +1,21 @@
 services:
+  api:
+    # Option 1: Use pre-built image from GitHub Container Registry
+    image: ghcr.io/jellevictoor/entsoe-influx-api:latest
+    # Option 2: Build locally (comment out 'image' above and uncomment below)
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - INFLUX_URL=${INFLUX_URL}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET:-energy_prices}
+      - TAX=${TAX:-0.06}
+    restart: unless-stopped
+
   scheduler:
     image: mcuadros/ofelia:latest
     command: daemon --docker
@@ -9,5 +26,4 @@ services:
       ofelia.enabled: "true"
       ofelia.job-run.entsoe-import.schedule: "0 14 * * *"
       ofelia.job-run.entsoe-import.image: "ghcr.io/jellevictoor/entsoe-influx:latest"
-      ofelia.job-run.entsoe-import.environment: "ENTSOE_API_KEY=${ENTSOE_API_KEY},INFLUX_URL=${INFLUX_URL:-http://influxdb:8086},INFLUX_TOKEN=${INFLUX_TOKEN},INFLUX_ORG=${INFLUX_ORG},INFLUX_BUCKET=${INFLUX_BUCKET:-energy_prices}"
-      ofelia.job-run.entsoe-import.command: "--country-code ${COUNTRY_CODE:-BE}"
+      ofelia.job-run.entsoe-import.command: "--country-code ${COUNTRY_CODE:-BE} --entsoe-api-key ${ENTSOE_API_KEY} --influx-token ${INFLUX_TOKEN} --influx-org ${INFLUX_ORG} --influx-url ${INFLUX_URL}"
