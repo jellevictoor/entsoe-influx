@@ -121,6 +121,7 @@ docker compose run --rm entsoe-influx
 | `INFLUX_TOKEN` | Yes | - | InfluxDB authentication token |
 | `INFLUX_ORG` | Yes | - | InfluxDB organization |
 | `INFLUX_BUCKET` | No | `energy_prices` | InfluxDB bucket name |
+| `TAX` | No | `0.0` | Tax rate to apply (e.g., `0.06` for 6%) |
 
 ### CLI Options
 
@@ -134,6 +135,21 @@ uv run python -m entsoe_influx.main --help
 - `--influx-org`: InfluxDB organization
 - `--influx-bucket`: InfluxDB bucket name
 - `--country-code`: ENTSO-E country code (e.g., BE, DE_LU, NL)
+- `--tax`: Tax rate to apply (e.g., 0.06 for 6%)
+
+### InfluxDB Data Schema
+
+Each price point is stored with the following fields:
+
+| Field | Unit | Description |
+|-------|------|-------------|
+| `price_eur_mwh` | EUR/MWh | Raw price from ENTSO-E |
+| `price_eur_kwh` | EUR/kWh | Converted price (÷1000) |
+| `price_eur_kwh_with_tax` | EUR/kWh | Price with tax applied |
+
+**Tags:**
+- `country`: Country code (e.g., `BE`, `NL`)
+- `price_type`: Always `day_ahead`
 
 ### Country Codes
 

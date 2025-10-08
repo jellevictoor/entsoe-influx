@@ -26,4 +26,4 @@ services:
       ofelia.enabled: "true"
       ofelia.job-run.entsoe-import.schedule: "0 14 * * *"
       ofelia.job-run.entsoe-import.image: "ghcr.io/jellevictoor/entsoe-influx:latest"
-      ofelia.job-run.entsoe-import.command: "--country-code ${COUNTRY_CODE:-BE} --entsoe-api-key ${ENTSOE_API_KEY} --influx-token ${INFLUX_TOKEN} --influx-org ${INFLUX_ORG} --influx-url ${INFLUX_URL}"
+      ofelia.job-run.entsoe-import.command: "--country-code ${COUNTRY_CODE:-BE} --entsoe-api-key ${ENTSOE_API_KEY} --influx-token ${INFLUX_TOKEN} --influx-org ${INFLUX_ORG} --influx-url ${INFLUX_URL} --tax ${TAX:-0.06}"

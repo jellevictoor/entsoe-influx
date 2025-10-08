@@ -32,7 +32,7 @@ def fetch_day_ahead_prices(client, country_code, start, end):
 
 
 def write_to_influxdb(
-    prices, country_code, influx_url, influx_token, influx_org, influx_bucket
+    prices, country_code, influx_url, influx_token, influx_org, influx_bucket, tax=0.0
 ):
     """Write price data to InfluxDB."""
     # Initialize InfluxDB client
@@ -42,12 +42,18 @@ def write_to_influxdb(
     try:
         points = []
         for timestamp, price in prices.items():
-            # Create a point for each price entry
+            price_mwh = float(price)
+            price_kwh = price_mwh / 1000  # Convert EUR/MWh to EUR/kWh
+            price_kwh_with_tax = price_kwh * (1 + tax)  # Apply tax
+
+            # Create a point for each price entry with multiple fields
             point = (
                 Point("electricity_price")
                 .tag("country", country_code)
                 .tag("price_type", "day_ahead")
-                .field("price_eur_mwh", float(price))
+                .field("price_eur_mwh", price_mwh)
+                .field("price_eur_kwh", price_kwh)
+                .field("price_eur_kwh_with_tax", price_kwh_with_tax)
                 .time(timestamp)
             )
             points.append(point)
@@ -82,6 +88,9 @@ def main(
     country_code: str = typer.Option(
         "BE", "--country-code", help="ENTSO-E country code (e.g., BE, DE_LU, NL)"
     ),
+    tax: float = typer.Option(
+        0.0, envvar="TAX", help="Tax rate to apply (e.g., 0.06 for 6%)"
+    ),
 ):
     """Main function to fetch and import ENTSO-E prices."""
     # Configure logging
@@ -111,7 +120,13 @@ def main(
 
         # Write to InfluxDB
         write_to_influxdb(
-            prices, country_code, influx_url, influx_token, influx_org, influx_bucket
+            prices,
+            country_code,
+            influx_url,
+            influx_token,
+            influx_org,
+            influx_bucket,
+            tax,
         )
     else:
         logger.warning("No data fetched")
