@@ -193,17 +193,17 @@ curl http://localhost:8000/prices?country=BE&tax=0.06
   {
     "start": "2025-01-01T00:00:00Z",
     "end": "2025-01-01T00:15:00Z",
-    "value": 25.0
+    "value": 0.25
   },
   {
     "start": "2025-01-01T00:15:00Z",
     "end": "2025-01-01T00:30:00Z",
-    "value": 26.5
+    "value": 0.265
   }
 ]
 ```
 
-- Prices are in **ct/kWh** (cents per kilowatt-hour)
+- Prices are in **EUR/kWh** (euros per kilowatt-hour)
 - Covers **48 hours past** and **48 hours future**
 - Tax is automatically applied based on `TAX` environment variable or query parameter
 - Supports **15-minute intervals** (or any interval in your InfluxDB data)

@@ -85,12 +85,10 @@ def query_prices(country_code: str = None, tax: float = 0.0) -> List[PriceEntry]
             price_mwh = record.get_value()
 
             # Convert price from EUR/MWh to EUR/kWh (divide by 1000)
-            # and from EUR/kWh to ct/kWh (multiply by 100)
-            # Net result: divide by 10
-            price_ct_kwh = price_mwh / 10
+            price_eur_kwh = price_mwh / 1000
 
             # Apply tax (tax is a multiplier, e.g., 0.06 = 6%)
-            price_with_tax = price_ct_kwh * (1 + tax)
+            price_with_tax = price_eur_kwh * (1 + tax)
 
             # Format the time period
             start_time = timestamp.isoformat().replace("+00:00", "Z")
