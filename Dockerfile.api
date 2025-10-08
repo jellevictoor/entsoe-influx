@@ -29,4 +29,4 @@ COPY entsoe_influx ./entsoe_influx
 EXPOSE 8000
 
 # Set entrypoint to run the API
-ENTRYPOINT ["/app/.venv/bin/uvicorn", "entsoe_influx.api:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/.venv/bin/python", "-m", "uvicorn", "entsoe_influx.api:app", "--host", "0.0.0.0", "--port", "8000"]
