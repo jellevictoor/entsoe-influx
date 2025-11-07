@@ -6,12 +6,15 @@ Fetches electricity price data from ENTSO-E API and stores it in InfluxDB.
 
 import logging
 from datetime import timedelta
+
+from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 import pandas as pd
 import typer
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ENTSO-E country codes (examples)
@@ -143,7 +146,9 @@ def backfill(
         30, "--chunk-days", help="Number of days to fetch per API request (default: 30)"
     ),
     dry_run: bool = typer.Option(
-        False, "--dry-run", help="Preview what would be fetched without writing to database"
+        False,
+        "--dry-run",
+        help="Preview what would be fetched without writing to database",
     ),
     entsoe_api_key: str = typer.Option(
         ..., envvar="ENTSOE_API_KEY", help="ENTSO-E API key"
@@ -201,16 +206,22 @@ def backfill(
         chunk_count += 1
         current_end = min(current_start + timedelta(days=chunk_days), end_time)
 
-        logger.info(f"\n📦 Chunk {chunk_count}: {current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')}")
+        logger.info(
+            f"\n📦 Chunk {chunk_count}: {current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')}"
+        )
 
         if dry_run:
-            logger.info(f"   Would fetch data for this period (skipping in dry-run mode)")
+            logger.info(
+                "   Would fetch data for this period (skipping in dry-run mode)"
+            )
             current_start = current_end
             continue
 
         # Fetch prices for this chunk
         try:
-            prices = fetch_day_ahead_prices(entsoe_client, country_code, current_start, current_end)
+            prices = fetch_day_ahead_prices(
+                entsoe_client, country_code, current_start, current_end
+            )
 
             if prices is not None and not prices.empty:
                 logger.info(f"   ✓ Fetched {len(prices)} price points")
@@ -227,7 +238,7 @@ def backfill(
                 )
                 total_points += len(prices)
             else:
-                logger.warning(f"   ⚠ No data available for this period")
+                logger.warning("   ⚠ No data available for this period")
                 failed_chunks.append((current_start, current_end))
 
         except Exception as e:
@@ -238,7 +249,7 @@ def backfill(
         current_start = current_end
 
     # Summary
-    logger.info("\n" + "="*60)
+    logger.info("\n" + "=" * 60)
     if dry_run:
         logger.info("DRY RUN SUMMARY")
         logger.info(f"Would fetch {chunk_count} chunks covering {days} days")
@@ -251,11 +262,13 @@ def backfill(
         if failed_chunks:
             logger.warning(f"\n⚠ {len(failed_chunks)} chunks failed:")
             for start, end in failed_chunks:
-                logger.warning(f"   - {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+                logger.warning(
+                    f"   - {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+                )
         else:
             logger.info("✓ All chunks processed successfully!")
 
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info("Backfill completed")
 
 
