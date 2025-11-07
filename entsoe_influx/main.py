@@ -134,5 +134,130 @@ def main(
     logger.info("Import completed")
 
 
+@app.command()
+def backfill(
+    days: int = typer.Option(
+        365, "--days", help="Number of days to backfill (default: 365 for one year)"
+    ),
+    chunk_days: int = typer.Option(
+        30, "--chunk-days", help="Number of days to fetch per API request (default: 30)"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Preview what would be fetched without writing to database"
+    ),
+    entsoe_api_key: str = typer.Option(
+        ..., envvar="ENTSOE_API_KEY", help="ENTSO-E API key"
+    ),
+    influx_url: str = typer.Option(
+        "http://localhost:8086", envvar="INFLUX_URL", help="InfluxDB URL"
+    ),
+    influx_token: str = typer.Option(
+        ..., envvar="INFLUX_TOKEN", help="InfluxDB authentication token"
+    ),
+    influx_org: str = typer.Option(
+        ..., envvar="INFLUX_ORG", help="InfluxDB organization"
+    ),
+    influx_bucket: str = typer.Option(
+        "energy_prices", envvar="INFLUX_BUCKET", help="InfluxDB bucket name"
+    ),
+    country_code: str = typer.Option(
+        "BE", "--country-code", help="ENTSO-E country code (e.g., BE, DE_LU, NL)"
+    ),
+    tax: float = typer.Option(
+        0.0, envvar="TAX", help="Tax rate to apply (e.g., 0.06 for 6%)"
+    ),
+):
+    """Backfill historical electricity price data from ENTSO-E API."""
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    if dry_run:
+        logger.info("🔍 DRY RUN MODE - No data will be written to database")
+
+    logger.info(f"Starting historical data backfill for {country_code}")
+    logger.info(f"Backfill period: {days} days")
+    logger.info(f"Chunk size: {chunk_days} days per request")
+
+    # Initialize ENTSO-E client
+    entsoe_client = EntsoePandasClient(api_key=entsoe_api_key)
+
+    # Calculate time ranges
+    end_time = pd.Timestamp.now(tz="UTC")
+    start_time = end_time - timedelta(days=days)
+
+    logger.info(f"Time range: {start_time} to {end_time}")
+
+    # Calculate chunks
+    current_start = start_time
+    chunk_count = 0
+    total_points = 0
+    failed_chunks = []
+
+    while current_start < end_time:
+        chunk_count += 1
+        current_end = min(current_start + timedelta(days=chunk_days), end_time)
+
+        logger.info(f"\n📦 Chunk {chunk_count}: {current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')}")
+
+        if dry_run:
+            logger.info(f"   Would fetch data for this period (skipping in dry-run mode)")
+            current_start = current_end
+            continue
+
+        # Fetch prices for this chunk
+        try:
+            prices = fetch_day_ahead_prices(entsoe_client, country_code, current_start, current_end)
+
+            if prices is not None and not prices.empty:
+                logger.info(f"   ✓ Fetched {len(prices)} price points")
+
+                # Write to InfluxDB
+                write_to_influxdb(
+                    prices,
+                    country_code,
+                    influx_url,
+                    influx_token,
+                    influx_org,
+                    influx_bucket,
+                    tax,
+                )
+                total_points += len(prices)
+            else:
+                logger.warning(f"   ⚠ No data available for this period")
+                failed_chunks.append((current_start, current_end))
+
+        except Exception as e:
+            logger.error(f"   ✗ Error processing chunk: {e}")
+            failed_chunks.append((current_start, current_end))
+
+        # Move to next chunk
+        current_start = current_end
+
+    # Summary
+    logger.info("\n" + "="*60)
+    if dry_run:
+        logger.info("DRY RUN SUMMARY")
+        logger.info(f"Would fetch {chunk_count} chunks covering {days} days")
+        logger.info("Run without --dry-run to actually fetch and store the data")
+    else:
+        logger.info("BACKFILL SUMMARY")
+        logger.info(f"Processed {chunk_count} chunks")
+        logger.info(f"Total data points written: {total_points}")
+
+        if failed_chunks:
+            logger.warning(f"\n⚠ {len(failed_chunks)} chunks failed:")
+            for start, end in failed_chunks:
+                logger.warning(f"   - {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+        else:
+            logger.info("✓ All chunks processed successfully!")
+
+    logger.info("="*60)
+    logger.info("Backfill completed")
+
+
 if __name__ == "__main__":
     app()

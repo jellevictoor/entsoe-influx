@@ -7,6 +7,7 @@ Fetches day-ahead electricity price data from the ENTSO-E Transparency Platform 
 - Fetch day-ahead electricity prices from ENTSO-E API
 - Store data in InfluxDB with country and price type tags
 - **REST API endpoint for evcc integration**
+- **Historical data backfill with dry-run support**
 - Support for all ENTSO-E country codes and 15-minute intervals
 - Automatic tax calculation
 - CLI interface with environment variable support
@@ -109,6 +110,60 @@ To run the importer manually:
 ```bash
 docker compose run --rm entsoe-influx
 ```
+
+### Backfilling Historical Data
+
+To populate your database with historical electricity price data, use the `backfill` command:
+
+```bash
+# Preview what would be fetched (dry-run mode) - for the last year
+uv run python -m entsoe_influx.main backfill --dry-run
+
+# Actually fetch and store historical data for the last year (365 days)
+uv run python -m entsoe_influx.main backfill
+
+# Backfill last 90 days
+uv run python -m entsoe_influx.main backfill --days 90
+
+# Backfill with custom chunk size (smaller chunks for rate limiting)
+uv run python -m entsoe_influx.main backfill --days 365 --chunk-days 7
+```
+
+**Docker usage:**
+
+```bash
+# Dry-run to preview
+docker compose run --rm entsoe-influx backfill --dry-run
+
+# Backfill the last year
+docker compose run --rm entsoe-influx backfill
+
+# Or with Docker directly
+docker run --rm \
+  -e ENTSOE_API_KEY=your-api-key \
+  -e INFLUX_URL=http://influxdb:8086 \
+  -e INFLUX_TOKEN=your-token \
+  -e INFLUX_ORG=your-org \
+  ghcr.io/jellevictoor/entsoe-influx:latest \
+  backfill --days 365
+```
+
+**Backfill Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--days` | `365` | Number of days to backfill |
+| `--chunk-days` | `30` | Number of days per API request (helps with rate limiting) |
+| `--dry-run` | `false` | Preview what would be fetched without writing to database |
+| `--country-code` | `BE` | Country code to backfill |
+
+**Important Notes:**
+
+- **Always run with `--dry-run` first** to verify the date ranges and chunk count
+- The ENTSO-E API may have rate limits - use smaller `--chunk-days` if you encounter errors
+- Backfilling will show progress for each chunk and provide a summary at the end
+- Failed chunks are logged so you can retry specific periods if needed
+- Historical data availability varies by country (typically 1-3 years back)
 
 ## Configuration
 
