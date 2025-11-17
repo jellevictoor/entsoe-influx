@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+import numpy as np
 import pandas as pd
+from scipy import stats
 import typer
 
 load_dotenv()
@@ -34,8 +36,50 @@ def fetch_day_ahead_prices(client, country_code, start, end):
         return None
 
 
+def calculate_daily_percentiles(prices):
+    """
+    Calculate the percentile rank for each price within its day.
+
+    For each timestamp, calculates what percentile (0-100) that price represents
+    within all prices for that calendar day. This allows downstream classification
+    into cheap/normal/expensive categories based on flexible thresholds.
+
+    Args:
+        prices: pandas Series with timestamp index and price values
+
+    Returns:
+        pandas Series with same index, containing percentile values (0-100)
+    """
+    if prices is None or prices.empty:
+        return pd.Series(dtype=float)
+
+    # Create a DataFrame to work with
+    df = pd.DataFrame({'price': prices})
+
+    # Extract date (without time) for grouping - using UTC date
+    df['date'] = df.index.date
+
+    # Calculate percentile within each day
+    def percentile_rank(group):
+        """Calculate percentile rank for each value in the group."""
+        # Use scipy.stats.percentileofscore to get percentile (0-100)
+        # 'rank' method handles ties by averaging the percentile ranks
+        percentiles = [
+            stats.percentileofscore(group['price'].values, value, kind='rank')
+            for value in group['price'].values
+        ]
+        return pd.Series(percentiles, index=group.index)
+
+    # Apply percentile calculation per day
+    df['percentile'] = df.groupby('date', group_keys=False).apply(percentile_rank)
+
+    logger.info(f"Calculated daily percentiles for {len(df['date'].unique())} days")
+
+    return df['percentile']
+
+
 def write_to_influxdb(
-    prices, country_code, influx_url, influx_token, influx_org, influx_bucket, tax=0.0
+    prices, country_code, influx_url, influx_token, influx_org, influx_bucket, tax=0.0, percentiles=None
 ):
     """Write price data to InfluxDB."""
     # Initialize InfluxDB client
@@ -57,8 +101,14 @@ def write_to_influxdb(
                 .field("price_eur_mwh", price_mwh)
                 .field("price_eur_kwh", price_kwh)
                 .field("price_eur_kwh_with_tax", price_kwh_with_tax)
-                .time(timestamp)
             )
+
+            # Add daily percentile if available
+            if percentiles is not None and timestamp in percentiles.index:
+                percentile_value = float(percentiles[timestamp])
+                point = point.field("daily_percentile", percentile_value)
+
+            point = point.time(timestamp)
             points.append(point)
 
         # Write all points to InfluxDB
@@ -121,6 +171,9 @@ def main(
     if prices is not None and not prices.empty:
         logger.info(f"Fetched {len(prices)} price points")
 
+        # Calculate daily percentiles
+        percentiles = calculate_daily_percentiles(prices)
+
         # Write to InfluxDB
         write_to_influxdb(
             prices,
@@ -130,6 +183,7 @@ def main(
             influx_org,
             influx_bucket,
             tax,
+            percentiles,
         )
     else:
         logger.warning("No data fetched")
@@ -226,6 +280,9 @@ def backfill(
             if prices is not None and not prices.empty:
                 logger.info(f"   ✓ Fetched {len(prices)} price points")
 
+                # Calculate daily percentiles
+                percentiles = calculate_daily_percentiles(prices)
+
                 # Write to InfluxDB
                 write_to_influxdb(
                     prices,
@@ -235,6 +292,7 @@ def backfill(
                     influx_org,
                     influx_bucket,
                     tax,
+                    percentiles,
                 )
                 total_points += len(prices)
             else:
