@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
-    "entsoe-py>=0.7.1",
+    "entsoe-py>=0.7.8",
     "fastapi>=0.115.0",
     "influxdb-client>=1.35.0",
     "pandas>=2.2.3",

@@ -151,7 +151,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "entsoe-py", specifier = ">=0.7.1" },
+    { name = "entsoe-py", specifier = ">=0.7.8" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "influxdb-client", specifier = ">=1.35.0" },
     { name = "pandas", specifier = ">=2.2.3" },
@@ -172,7 +172,7 @@ dev = [
 
 [[package]]
 name = "entsoe-py"
-version = "0.7.5"
+version = "0.7.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -180,9 +180,9 @@ dependencies = [
     { name = "pytz" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/9d/af5aca1f960e61d7e3e37cc4ee683d849e90ddc0204596551a54e999e5e8/entsoe_py-0.7.5.tar.gz", hash = "sha256:64baa2135582093ebe03905eb6dcb73a20531d6bbddb80f3f4cc26c95c7077ac", size = 1596480, upload-time = "2025-10-03T17:21:44.028Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/89/e6f18b055a7ffb7c27d046f9a0a0dd60e8bcf62cb97cfe3de91e7cfec1ed/entsoe_py-0.7.8.tar.gz", hash = "sha256:79f9991fe9f29437ea218c3d709752c9e995fed98a6c76f99da47b880c2fa009", size = 1596836, upload-time = "2025-10-22T14:50:53.616Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/6e/2a42fec1e092d98fffa44c6354741cea99d9d89019b3d1fb8f3f4b8af4dd/entsoe_py-0.7.5-py3-none-any.whl", hash = "sha256:21021cfba3ee939853e26438d21add752af76ab7438813447a52528a23b94ce2", size = 1620245, upload-time = "2025-10-03T17:21:42.231Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/09/b5aa02657c323e44ba7f16d35d44e1c3e1e40e9658dd86b9c6570b68f280/entsoe_py-0.7.8-py3-none-any.whl", hash = "sha256:70202a7ad8a69f7371cee646a4120874bc968def84b857983b221a3984c69fb8", size = 1620260, upload-time = "2025-10-22T14:50:52.235Z" },
 ]
 
 [[package]]
